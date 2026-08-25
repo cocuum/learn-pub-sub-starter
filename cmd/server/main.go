@@ -21,6 +21,19 @@ func main() {
 	defer connect.Close()
 	fmt.Println("rtmq connection made successfully!")
 
+	_, q, err := pubsub.DeclareAndBind(
+		connect,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug+".*",
+		pubsub.SimpleQueueDurable,
+	)
+	if err != nil {
+		log.Fatalf("Unable to declare and bind: %v", err)
+	}
+
+	fmt.Printf("Queue %v declared and bound!\n", q.Name)
+
 	pubCh, err := connect.Channel()
 	if err != nil {
 		log.Fatalf("Unable to open channel: %v:", err)
