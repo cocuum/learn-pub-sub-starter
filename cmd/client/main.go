@@ -40,6 +40,22 @@ func main() {
 		log.Fatalf("Unable to subscribe to pause: %v", err)
 	}
 
+	err = pubsub.SubscribeJSON(
+		connect,
+		routing.ExchangePerilTopic,
+		routing.ArmyMovesPrefix+"."+gameState.GetUsername(),
+		routing.ArmyMovesPrefix+".*",
+		pubsub.SimpleQueueTransient,
+		handlerMove(gameState),
+	)
+
+	pubCh, err := connect.Channel()
+	if err != nil {
+		log.Fatalf("Unable to open channel: %v:", err)
+	}
+
+	gamelogic.PrintClientHelp()
+
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
@@ -54,11 +70,21 @@ func main() {
 				continue
 			}
 		case "move":
-			_, err := gameState.CommandMove(words)
+			mv, err := gameState.CommandMove(words)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
+			err = pubsub.PublishJSON(
+				pubCh,
+				routing.ExchangePerilTopic,
+				routing.ArmyMovesPrefix+"."+gameState.GetUsername(),
+				mv,
+			)
+			if err != nil {
+				log.Fatalf("Unable to publish move to channel: %v", err)
+			}
+			fmt.Print("Move published successfully!\n")
 		case "status":
 			gameState.CommandStatus()
 		case "help":
