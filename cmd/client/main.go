@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	//"os"
-	//"os/signal"
 
 	"github.com/cocuum/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/cocuum/learn-pub-sub-starter/internal/pubsub"
@@ -28,20 +26,19 @@ func main() {
 		log.Fatalf("Unable to create username: %v", err)
 	}
 
-	_, q, err := pubsub.DeclareAndBind(
+	gameState := gamelogic.NewGameState(username)
+
+	err = pubsub.SubscribeJSON(
 		connect,
 		routing.ExchangePerilDirect,
-		routing.PauseKey+"."+username,
+		routing.PauseKey+"."+gameState.GetUsername(),
 		routing.PauseKey,
 		pubsub.SimpleQueueTransient,
+		handlerPause(gameState),
 	)
 	if err != nil {
-		log.Fatalf("Unable to declare and bind: %v", err)
+		log.Fatalf("Unable to subscribe to pause: %v", err)
 	}
-
-	fmt.Printf("Queue %v declared and bound!\n", q.Name)
-
-	gameState := gamelogic.NewGameState(username)
 
 	for {
 		words := gamelogic.GetInput()
@@ -75,12 +72,4 @@ func main() {
 			fmt.Println("Unknown Command")
 		}
 	}
-/*
-	// wait for ctrl+c
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	fmt.Println("\nrtmq connection shut...")
-*/
-
 }
