@@ -21,6 +21,11 @@ func main() {
 	defer connect.Close()
 	fmt.Println("rtmq connection made successfully!")
 
+	pubCh, err := connect.Channel()
+	if err != nil {
+		log.Fatalf("Unable to open channel: %v:", err)
+	}
+
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
 		log.Fatalf("Unable to create username: %v", err)
@@ -30,29 +35,30 @@ func main() {
 
 	err = pubsub.SubscribeJSON(
 		connect,
-		routing.ExchangePerilDirect,
-		routing.PauseKey+"."+gameState.GetUsername(),
-		routing.PauseKey,
-		pubsub.SimpleQueueTransient,
-		handlerPause(gameState),
-	)
-	if err != nil {
-		log.Fatalf("Unable to subscribe to pause: %v", err)
-	}
-
-	err = pubsub.SubscribeJSON(
-		connect,
 		routing.ExchangePerilTopic,
 		routing.ArmyMovesPrefix+"."+gameState.GetUsername(),
 		routing.ArmyMovesPrefix+".*",
 		pubsub.SimpleQueueTransient,
 		handlerMove(gameState),
 	)
-
-	pubCh, err := connect.Channel()
 	if err != nil {
-		log.Fatalf("Unable to open channel: %v:", err)
+		log.Fatalf("Unable to subscribe to army moves: %v", err)
 	}
+
+	err = pubsub.SubscribeJSON(
+		connect,
+		routing.ExchangePerilDirect,
+		routing.PauseKey+"."+gameState.GetUsername(),
+		routing.PauseKey,
+		pubsub.SimpleQueueTransient,
+		handlerPause(gameState),
+
+	)
+	if err != nil {
+		log.Fatalf("Unable to subscribe to pause: %v", err)
+	}
+
+
 
 	gamelogic.PrintClientHelp()
 
