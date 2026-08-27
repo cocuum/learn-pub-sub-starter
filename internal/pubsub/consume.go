@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/cocuum/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -96,7 +97,9 @@ func DeclareAndBind(
 			queueType != SimpleQueueDurable,
 			queueType != SimpleQueueDurable,
 			false,
-			nil,
+			amqp.Table{
+				"x-dead-letter-exchange": routing.ExchangePerilDeadLetter,
+			},
 		)
 		if err != nil {
 			return nil,amqp.Queue{}, fmt.Errorf("Unable to declare queue: %v", err)
