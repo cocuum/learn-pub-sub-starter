@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	//"os"
-	//"os/signal"
 
 	"github.com/cocuum/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/cocuum/learn-pub-sub-starter/internal/pubsub"
@@ -23,25 +21,46 @@ func main() {
 	defer connect.Close()
 	fmt.Println("rtmq connection made successfully!")
 
+	pubCh, err := connect.Channel()
+	if err != nil {
+		log.Fatalf("Unable to open channel: %v:", err)
+	}
+
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
 		log.Fatalf("Unable to create username: %v", err)
 	}
 
-	_, q, err := pubsub.DeclareAndBind(
+	gameState := gamelogic.NewGameState(username)
+
+	err = pubsub.SubscribeJSON(
 		connect,
-		routing.ExchangePerilDirect,
-		routing.PauseKey+"."+username,
-		routing.PauseKey,
+		routing.ExchangePerilTopic,
+		routing.ArmyMovesPrefix+"."+gameState.GetUsername(),
+		routing.ArmyMovesPrefix+".*",
 		pubsub.SimpleQueueTransient,
+		handlerMove(gameState),
 	)
 	if err != nil {
-		log.Fatalf("Unable to declare and bind: %v", err)
+		log.Fatalf("Unable to subscribe to army moves: %v", err)
 	}
 
-	fmt.Printf("Queue %v declared and bound!\n", q.Name)
+	err = pubsub.SubscribeJSON(
+		connect,
+		routing.ExchangePerilDirect,
+		routing.PauseKey+"."+gameState.GetUsername(),
+		routing.PauseKey,
+		pubsub.SimpleQueueTransient,
+		handlerPause(gameState),
 
-	gameState := gamelogic.NewGameState(username)
+	)
+	if err != nil {
+		log.Fatalf("Unable to subscribe to pause: %v", err)
+	}
+
+
+
+	gamelogic.PrintClientHelp()
 
 	for {
 		words := gamelogic.GetInput()
@@ -57,11 +76,21 @@ func main() {
 				continue
 			}
 		case "move":
-			_, err := gameState.CommandMove(words)
+			mv, err := gameState.CommandMove(words)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
+			err = pubsub.PublishJSON(
+				pubCh,
+				routing.ExchangePerilTopic,
+				routing.ArmyMovesPrefix+"."+gameState.GetUsername(),
+				mv,
+			)
+			if err != nil {
+				log.Fatalf("Unable to publish move to channel: %v", err)
+			}
+			fmt.Print("Move published successfully!\n")
 		case "status":
 			gameState.CommandStatus()
 		case "help":
@@ -75,12 +104,4 @@ func main() {
 			fmt.Println("Unknown Command")
 		}
 	}
-/*
-	// wait for ctrl+c
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	fmt.Println("\nrtmq connection shut...")
-*/
-
 }

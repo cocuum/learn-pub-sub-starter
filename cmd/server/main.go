@@ -39,7 +39,7 @@ func main() {
 		log.Fatalf("Unable to open channel: %v:", err)
 	}
 
-	gamelogic.PrintClientHelp()
+	gamelogic.PrintServerHelp()
 
 	for {
 		words := gamelogic.GetInput()
