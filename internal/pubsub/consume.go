@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/cocuum/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -65,13 +66,10 @@ func SubscribeJSON[T any](
 			switch handler(target) {
 			case Ack:
 				message.Ack(false)
-				fmt.Println("Message Ack!")
 			case NackRequeue:
 				message.Nack(false, true)
-				fmt.Println("Message NackRequeue")
 			case NackDiscard:
 				message.Nack(false, false)
-				fmt.Println("Message NackDiscard")
 			}
 		}
 	}()
@@ -96,7 +94,9 @@ func DeclareAndBind(
 			queueType != SimpleQueueDurable,
 			queueType != SimpleQueueDurable,
 			false,
-			nil,
+			amqp.Table{
+				"x-dead-letter-exchange": routing.ExchangePerilDeadLetter,
+			},
 		)
 		if err != nil {
 			return nil,amqp.Queue{}, fmt.Errorf("Unable to declare queue: %v", err)
