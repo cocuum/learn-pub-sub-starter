@@ -66,13 +66,10 @@ func SubscribeJSON[T any](
 			switch handler(target) {
 			case Ack:
 				message.Ack(false)
-				fmt.Println("Message Ack!")
 			case NackRequeue:
 				message.Nack(false, true)
-				fmt.Println("Message NackRequeue")
 			case NackDiscard:
 				message.Nack(false, false)
-				fmt.Println("Message NackDiscard")
 			}
 		}
 	}()
