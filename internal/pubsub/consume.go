@@ -1,6 +1,8 @@
 package pubsub
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 
@@ -23,6 +25,31 @@ const (
 	NackRequeue
 )
 
+func SubscribeGob[T any](
+	connect *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) Acktype,
+) error {
+	return subscribe[T](
+		connect,
+		exchange,
+		queueName,
+		key,
+		queueType,
+		handler,
+		func(data []byte) (T, error) {
+			buffer := bytes.NewBuffer(data)
+			dec := gob.NewDecoder(buffer)
+			var target T
+			err := dec.Decode(&target)
+			return target, err
+		},
+	)
+}
+
 func SubscribeJSON[T any](
 	connect *amqp.Connection,
 	exchange,
@@ -30,6 +57,30 @@ func SubscribeJSON[T any](
 	key string,
 	queueType SimpleQueueType,
 	handler func(T) Acktype,
+) error {
+	return subscribe[T](
+		connect,
+		exchange,
+		queueName,
+		key,
+		queueType,
+		handler,
+		func(data []byte) (T, error) {
+			var target T
+			err := json.Unmarshal(data,&target)
+			return target, err
+		},
+	)
+}
+
+func subscribe[T any](
+	connect *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) Acktype,
+	unmarsh func([]byte) (T, error),
 ) error {
 	ch, q, err := DeclareAndBind(connect, exchange, queueName, key, queueType)
 	if err != nil {
@@ -46,13 +97,7 @@ func SubscribeJSON[T any](
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("Unable to consume deliveries: %v", err)
-	}
-
-	unmarsh := func(data []byte) (T, error) {
-		var target T
-		err := json.Unmarshal(data, &target)
-		return target, err
+		return fmt.Errorf("Unable to consume messages: %v", err)
 	}
 
 	go func() {

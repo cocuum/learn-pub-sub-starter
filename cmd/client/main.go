@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/cocuum/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/cocuum/learn-pub-sub-starter/internal/pubsub"
@@ -39,7 +40,7 @@ func main() {
 		routing.WarRecognitionsPrefix,
 		routing.WarRecognitionsPrefix+".*",
 		pubsub.SimpleQueueDurable,
-		handlerWar(gameState),
+		handlerWar(gameState, pubCh),
 	)
 	if err != nil {
 		log.Fatalf("Unable to subscribe to war recognitions: %v", err)
@@ -116,4 +117,17 @@ func main() {
 			fmt.Println("Unknown Command")
 		}
 	}
+}
+
+func publishGameLog(publishCh *amqp.Channel, username, message string) error {
+	return pubsub.PublishGob(
+		publishCh,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug+"."+username,
+		routing.GameLog{
+			CurrentTime: time.Now(),
+			Message: message,
+			Username: username,
+		},
+	)
 }

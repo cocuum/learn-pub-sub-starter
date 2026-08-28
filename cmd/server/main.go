@@ -21,22 +21,21 @@ func main() {
 	defer connect.Close()
 	fmt.Println("rtmq connection made successfully!")
 
-	_, q, err := pubsub.DeclareAndBind(
+	pubCh, err := connect.Channel()
+	if err != nil {
+		log.Fatalf("Unable to open channel: %v:", err)
+	}
+
+	err = pubsub.SubscribeGob(
 		connect,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		routing.GameLogSlug+".*",
 		pubsub.SimpleQueueDurable,
+		handlerGameLog(),
 	)
 	if err != nil {
-		log.Fatalf("Unable to declare and bind: %v", err)
-	}
-
-	fmt.Printf("Queue %v declared and bound!\n", q.Name)
-
-	pubCh, err := connect.Channel()
-	if err != nil {
-		log.Fatalf("Unable to open channel: %v:", err)
+		log.Fatalf("Unable to subscribe to game logs: %v", err)
 	}
 
 	gamelogic.PrintServerHelp()
