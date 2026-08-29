@@ -87,6 +87,11 @@ func subscribe[T any](
 		return fmt.Errorf("Unable to declare and bind: %v", err)
 	}
 
+	err = ch.Qos(10, 0, false)
+	if err != nil {
+		return fmt.Errorf("Unable to set prefetch: %v", err)
+	}
+
 	messages, err := ch.Consume(
 		q.Name,
 		"",
