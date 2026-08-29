@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/cocuum/learn-pub-sub-starter/internal/gamelogic"
@@ -71,8 +72,6 @@ func main() {
 		log.Fatalf("Unable to subscribe to pause: %v", err)
 	}
 
-
-
 	gamelogic.PrintClientHelp()
 
 	for {
@@ -109,7 +108,26 @@ func main() {
 		case "help":
 			gamelogic.PrintClientHelp()
 		case "spam":
-			fmt.Println("Spamming not allowed yet!")
+			if len(words) != 2 {
+				fmt.Println("Usage: spam <int> - provide number")
+				continue
+			}
+			nSpam, err := strconv.Atoi(words[1])
+			if err != nil {
+				log.Fatalf("Invalid number [%s]: %v", words[1], err)
+			}
+			for i := 0; i < nSpam; i++ {
+				msg := gamelogic.GetMaliciousLog()
+				err := publishGameLog(
+					pubCh,
+					username,
+					msg,
+				)
+				if err != nil {
+					log.Fatalf("Unable to publish spam to channel: %v", err)
+				}
+			}
+			fmt.Printf("Published %v malicious logs\n", nSpam)
 		case "quit":
 			gamelogic.PrintQuit()
 			return
